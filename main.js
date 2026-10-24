@@ -112,8 +112,9 @@ function OrbitRig(cam, dom) {
   this.cam = cam;
   this.target = new THREE.Vector3(0, 8.5, 0);
   this.goalTarget = new THREE.Vector3(0, 8.5, 0);
-  this.cur = { theta: 0.72, phi: 1.06, radius: 62 };
+  this.cur = { theta: 0.72, phi: 1.06, radius: 60 };
   this.goal = { theta: 0.72, phi: 1.06, radius: 38 };
+  this.radiusMax = 96;
 
   var pointers = new Map();
   var lastPinch = 0, lastMid = null;
@@ -122,7 +123,7 @@ function OrbitRig(cam, dom) {
 
   function clampGoal() {
     self.goal.phi = Math.max(0.14, Math.min(1.52, self.goal.phi));
-    self.goal.radius = Math.max(13, Math.min(96, self.goal.radius));
+    self.goal.radius = Math.max(13, Math.min(self.radiusMax || 96, self.goal.radius));
     self.goalTarget.y = Math.max(-2, Math.min(20, self.goalTarget.y));
     self.goalTarget.x = Math.max(-24, Math.min(24, self.goalTarget.x));
     self.goalTarget.z = Math.max(-24, Math.min(24, self.goalTarget.z));
@@ -212,7 +213,7 @@ function OrbitRig(cam, dom) {
     this.cam.lookAt(this.target);
   };
   this.reset = function () {
-    this.goal.theta = 0.72; this.goal.phi = 1.06; this.goal.radius = 38;
+    this.goal.theta = 0.72; this.goal.phi = 1.06; this.goal.radius = vp.base;
     this.goalTarget.set(0, 8.5, 0);
     this.autoFrame = true;
   };
@@ -283,6 +284,21 @@ var root = new THREE.Group();
 root.position.y = 11.5; // 起落架落地：机身抬高，脚垫贴地
 scene.add(root);
 
+/* ---------------- 响应式取景（手机竖屏单独一套参数） ---------------- */
+var vp = { fov: 45, base: 38, grow: 30, max: 96, explodeScale: 1 };        // 桌面
+var vpMobile = { fov: 65, base: 112, grow: 26, max: 175, explodeScale: 0.52 }; // 手机竖屏
+var explodeScale = 1, explodeScaleTarget = 1, labelSpread = 1;
+function layoutViewport() {
+  var aspect = window.innerWidth / Math.max(1, window.innerHeight);
+  vp = aspect < 0.95 ? vpMobile : { fov: 45, base: 38, grow: 30, max: 96, explodeScale: 1 };
+  camera.fov = vp.fov;
+  camera.updateProjectionMatrix();
+  explodeScaleTarget = vp.explodeScale;
+  rig.radiusMax = vp.max;
+  labelSpread = vp.explodeScale < 1 ? 2.1 : 1; // 手机上标签抬升间距放大，防重叠
+  if (rig.autoFrame) rig.goal.radius = vp.base + explodeGoal * vp.grow;
+}
+
 var explodables = []; // {obj, base, off}
 function reg(obj, off) {
   obj.userData.basePos = obj.position.clone();
@@ -294,7 +310,7 @@ function applyExplode(t) {
   var e = t * t * (3 - 2 * t);
   for (var i = 0; i < explodables.length; i++) {
     var o = explodables[i];
-    o.position.copy(o.userData.basePos).addScaledVector(o.userData.off, e);
+    o.position.copy(o.userData.basePos).addScaledVector(o.userData.off, e * explodeScale);
   }
 }
 
@@ -1141,7 +1157,7 @@ function updateLabels() {
     var isSel = selected === p;
     if (!show && !isSel) { el.style.opacity = 0; el.style.pointerEvents = 'none'; return; }
     p.labelAnchor.getWorldPosition(tmpV);
-    tmpV.y += p.labelLift || 1.2;
+    tmpV.y += (p.labelLift || 1.2) * labelSpread;
     tmpV.project(camera);
     if (tmpV.z > 1 || tmpV.z < -1) { el.style.opacity = 0; el.style.pointerEvents = 'none'; return; }
     el.style.left = ((tmpV.x * 0.5 + 0.5) * window.innerWidth) + 'px';
@@ -1210,7 +1226,7 @@ btnDemo.addEventListener('click', function () {
 
 /* 面板开关（移动端） */
 $('panel-toggle').addEventListener('click', function () {
-  $('parts-panel').classList.toggle('hidden');
+  $('parts-panel').classList.toggle('hidden-mobile');
 });
 
 /* 键盘 */
@@ -1242,8 +1258,6 @@ setTimeout(hideHints, 12000);
 setExplodeGoal(0);
 applyExplode(explodeCur);
 
-var clock = new THREE.Clock();
-var elapsed = 0;
 function animate() {
   requestAnimationFrame(animate);
   var dt = Math.min(clock.getDelta(), 0.05);
@@ -1258,11 +1272,12 @@ function animate() {
   var ke = 1 - Math.exp(-dt * 3.2);
   explodeCur += (explodeGoal - explodeCur) * ke;
   if (Math.abs(explodeGoal - explodeCur) < 0.001) explodeCur = explodeGoal;
+  explodeScale += (explodeScaleTarget - explodeScale) * (1 - Math.exp(-dt * 2.5));
   applyExplode(explodeCur);
 
-  // 自动取景：爆炸铺开越大，相机拉得越远、视心略上移
+  // 自动取景：爆炸铺开越大，相机拉得越远、视心略上移（手机/桌面各自一套距离）
   if (rig.autoFrame) {
-    rig.goal.radius = 38 + explodeCur * 30;
+    rig.goal.radius = vp.base + explodeCur * vp.grow;
     rig.goalTarget.y = 8.5 + explodeCur * 5;
   }
 
@@ -1286,12 +1301,18 @@ function animate() {
   updateLabels();
   renderer.render(scene, camera);
 }
+
+var clock = new THREE.Clock();
+var elapsed = 0;
+layoutViewport();
+rig.cur.radius = vp.base + 24; // 开场从稍远处推进
 animate();
 
 window.addEventListener('resize', function () {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  layoutViewport();
 });
 
 setTimeout(function () { loadingEl.classList.add('done'); }, 600);

@@ -1,11 +1,29 @@
 F450 四旋翼 · 3D 拆解页面 使用说明
 ================================================
 
+★ 在线网址（已上线 2026-10-24）：
+  https://yumou1216.github.io/f450-3d/
+  （GitHub Pages 免费托管。国内访问时好时坏，打不开就换
+   WiFi/热点切换重试；稳定国内版等 Gitee 实名审核通过后
+   在 Gitee 仓库「服务→Gitee Pages」点启动，链接形如
+   https://yumou1216.gitee.io/f450-3d/ ）
+
 文件夹里的三个文件缺一不可（整个文件夹要一起移动/发送）：
   index.html        页面（入口）
   main.js           3D 模型和交互逻辑
   lib/three.min.js  Three.js 引擎（本地库，所以断网也能用）
 
+★ 以后怎么更新线上页面（改了 main.js 或 index.html 之后）：
+  在本文件夹地址栏输入 cmd 回车，然后执行：
+    git add .
+    git commit -m "更新说明"
+    git push gitee main        （推 Gitee）
+  GitHub 那边推送需要令牌当密码（30天后过期，过期就去
+  GitHub → Settings → Developer settings → Personal access
+  tokens 重新生成一个，勾选 repo 权限）：
+    git -c credential.helper= push "https://yumou1216:你的令牌@github.com/yumou1216/f450-3d.git" main
+  推送后 GitHub Pages 一两分钟内自动更新；Gitee Pages 需要去
+  网页上手动点一次「更新」。
 
 一、自己打开（最简单，不用联网）
 ------------------------------------------------
@@ -28,19 +46,11 @@ F450 四旋翼 · 3D 拆解页面 使用说明
 3. 用完在黑窗口按 Ctrl+C 关闭服务器。
 
 
-三、发链接给远方的人（推荐，微信点开就能玩）
+三、发链接给远方的人
 ------------------------------------------------
-把页面放到免费静态托管上，得到一个网址，手机电脑都能打开。
-任选其一：
-  · Gitee Pages（国内快）：注册 gitee.com → 新建仓库 →
-    上传这三个文件 → 服务 → Gitee Pages → 开启
-  · GitHub Pages：注册 github.com → 新建仓库 → 上传文件 →
-    Settings → Pages → 选择 main 分支开启
-  · Vercel：vercel.com → 登录 → 直接把整个文件夹拖进网页 →
-    自动生成链接
-
-注意：托管时上传的是"文件夹里的内容"（index.html 在最顶层），
-不要把整个文件夹套一层再传。
+在线网址见最上方 ★。也可以把整个文件夹压缩成 zip 发微信，
+对方电脑解压后双击 index.html 就能玩（手机上解压较麻烦，
+建议直接发在线链接）。
 
 
 四、页面操作速查
@@ -50,3 +60,4 @@ F450 四旋翼 · 3D 拆解页面 使用说明
 手机：单指旋转 · 双指缩放 · 点部件看详情
 
 部件数据来自实际组装记录（2026-10，余莉艳项目清单）。
+
