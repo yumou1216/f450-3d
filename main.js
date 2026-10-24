@@ -1051,9 +1051,50 @@ function renderDetail(p) {
   }
   if (d.note) html += '<div class="sec-title">备注</div><div class="note-box">' + d.note + '</div>';
   $('detail-body').innerHTML = html;
+  detailPanel.classList.remove('collapsed'); // 换部件查看时自动展开
   detailPanel.classList.add('show');
 }
 $('detail-close').addEventListener('click', function () { deselect(); });
+$('detail-collapse').addEventListener('click', function () {
+  detailPanel.classList.toggle('collapsed');
+});
+
+/* 面板拖拽：按住标题栏即可移动到任意位置（手机手指 / 电脑鼠标通用） */
+function makePanelDraggable(panel, handleSel) {
+  var handle = panel.querySelector(handleSel);
+  if (!handle) return;
+  handle.classList.add('panel-head-drag');
+  var placed = false;
+  handle.addEventListener('pointerdown', function (e) {
+    if (e.target.closest('button')) return; // 按钮不触发拖拽
+    var r = panel.getBoundingClientRect();
+    var startL = placed ? (parseFloat(panel.style.left) || r.left) : r.left;
+    var startT = placed ? (parseFloat(panel.style.top) || r.top) : r.top;
+    var sx = e.clientX, sy = e.clientY;
+    placed = true;
+    panel.classList.add('free-pos');
+    panel.style.left = startL + 'px';
+    panel.style.top = startT + 'px';
+    if (handle.setPointerCapture) { try { handle.setPointerCapture(e.pointerId); } catch (err) {} }
+    var mv = function (ev) {
+      var nl = Math.max(6, Math.min(window.innerWidth - 70, startL + ev.clientX - sx));
+      var nt = Math.max(6, Math.min(window.innerHeight - 56, startT + ev.clientY - sy));
+      panel.style.left = nl + 'px';
+      panel.style.top = nt + 'px';
+    };
+    var up = function () {
+      handle.removeEventListener('pointermove', mv);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+    };
+    handle.addEventListener('pointermove', mv);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+    e.preventDefault();
+  });
+}
+makePanelDraggable(detailPanel, '#detail-panel .head');
+makePanelDraggable($('parts-panel'), '#parts-panel .head');
 
 /* ---------------- 选中 / 高亮 ---------------- */
 var selected = null, hovered = null;
