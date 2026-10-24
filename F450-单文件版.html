@@ -128,6 +128,21 @@
     font-size:14px;line-height:1;cursor:pointer;transition:all .15s;
   }
   #detail-close:hover{color:var(--cyan);border-color:var(--cyan)}
+  #detail-collapse{
+    position:absolute;top:10px;right:40px;width:24px;height:24px;border-radius:6px;
+    border:1px solid var(--line);background:transparent;color:var(--text-dim);
+    font-size:11px;line-height:1;cursor:pointer;transition:all .15s;
+  }
+  #detail-collapse:hover{color:var(--cyan);border-color:var(--cyan)}
+  #detail-panel.collapsed #detail-body,
+  #detail-panel.collapsed .model{display:none}
+  #detail-panel.collapsed #detail-collapse{transform:rotate(180deg)}
+  /* 面板拖拽（标题栏为把手） */
+  .panel-head-drag{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+  .panel-head-drag:active{cursor:grabbing}
+  #detail-panel.free-pos,#parts-panel.free-pos{right:auto!important;bottom:auto!important}
+  #detail-panel.free-pos{transition:opacity .3s}
+  #parts-panel.free-pos{transition:opacity .3s}
   #detail-body{overflow-y:auto;padding:12px 16px 16px}
   #detail-body::-webkit-scrollbar{width:4px}
   #detail-body::-webkit-scrollbar-thumb{background:rgba(77,216,255,.25);border-radius:4px}
@@ -303,6 +318,7 @@
     <div class="cat" id="d-cat">核心电子设备</div>
     <h2 id="d-name">部件名称</h2>
     <div class="model" id="d-model">型号</div>
+    <button id="detail-collapse" title="折叠 / 展开">▾</button>
     <button id="detail-close">✕</button>
   </div>
   <div id="detail-body"></div>
@@ -1394,9 +1410,50 @@ function renderDetail(p) {
   }
   if (d.note) html += '<div class="sec-title">备注</div><div class="note-box">' + d.note + '</div>';
   $('detail-body').innerHTML = html;
+  detailPanel.classList.remove('collapsed'); // 换部件查看时自动展开
   detailPanel.classList.add('show');
 }
 $('detail-close').addEventListener('click', function () { deselect(); });
+$('detail-collapse').addEventListener('click', function () {
+  detailPanel.classList.toggle('collapsed');
+});
+
+/* 面板拖拽：按住标题栏即可移动到任意位置（手机手指 / 电脑鼠标通用） */
+function makePanelDraggable(panel, handleSel) {
+  var handle = panel.querySelector(handleSel);
+  if (!handle) return;
+  handle.classList.add('panel-head-drag');
+  var placed = false;
+  handle.addEventListener('pointerdown', function (e) {
+    if (e.target.closest('button')) return; // 按钮不触发拖拽
+    var r = panel.getBoundingClientRect();
+    var startL = placed ? (parseFloat(panel.style.left) || r.left) : r.left;
+    var startT = placed ? (parseFloat(panel.style.top) || r.top) : r.top;
+    var sx = e.clientX, sy = e.clientY;
+    placed = true;
+    panel.classList.add('free-pos');
+    panel.style.left = startL + 'px';
+    panel.style.top = startT + 'px';
+    if (handle.setPointerCapture) { try { handle.setPointerCapture(e.pointerId); } catch (err) {} }
+    var mv = function (ev) {
+      var nl = Math.max(6, Math.min(window.innerWidth - 70, startL + ev.clientX - sx));
+      var nt = Math.max(6, Math.min(window.innerHeight - 56, startT + ev.clientY - sy));
+      panel.style.left = nl + 'px';
+      panel.style.top = nt + 'px';
+    };
+    var up = function () {
+      handle.removeEventListener('pointermove', mv);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+    };
+    handle.addEventListener('pointermove', mv);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+    e.preventDefault();
+  });
+}
+makePanelDraggable(detailPanel, '#detail-panel .head');
+makePanelDraggable($('parts-panel'), '#parts-panel .head');
 
 /* ---------------- 选中 / 高亮 ---------------- */
 var selected = null, hovered = null;
